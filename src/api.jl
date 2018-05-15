@@ -1,10 +1,13 @@
 datapath = joinpath(@__DIR__, "..", "data")
 
+global data
+
 function readdata!(datafile = joinpath(datapath, "sallsac_Hokusai.seq"))
     global data = readtable(datafile, separator = '\t')
 end
 
-function filterdata(data, image)
+# TODO: add filters for mirrored, starting location, ..
+function filterdata(data::DataFrame, image)
     # select the corresponding image
     data = data[data[:image] .== "$image.jpg", :]
 
@@ -31,17 +34,13 @@ function filterdata(data, image)
     return data
 end;
 
-function savecl()
-    savecl(5,6,50,50,:scaling,200,overwrite=true)
-end
-
+# convenience function for clustering, plotting and saving a run (written for batch use)
 function savecl(i, n, tau, sigma; method=:scaling, precl=0, overwrite=false, folder="out", caption=true, symmetrize=false)
     kmeans = method == :kmeans
     path = kmeans ? "$folder/img$i n$n kmeans.png" : "$folder/img$i n$n tau$tau sigma$sigma method$method precl$precl symm$symmetrize.png"
 
     if isfile(path) && !overwrite
-        print(".")
-        #PyPlot.imshow(path)
+        print("Clustering already existing. Skipping...")
         return
     end
 
@@ -52,7 +51,6 @@ function savecl(i, n, tau, sigma; method=:scaling, precl=0, overwrite=false, fol
 
     result = Hokusai.cluster(imgdata[[:fposx, :fposy, :fixdur, :subj]], n, tau=tau, sigma=sigma, precluster=precl, sort=:size, method=method, symmetrize=symmetrize)
 
-    println("saving image")
 
     imgfile = string(i)[1]
 
@@ -68,9 +66,11 @@ function savecl(i, n, tau, sigma; method=:scaling, precl=0, overwrite=false, fol
         PyPlot.text(0,0,"img=$i n=$n tau=$tau sigma=$sigma\nmethod=$method precl=$precl metastab=$metastab% minstab=$minstab")
     end
 
+    println("saving image")
+    mkpath(folder)
     PyPlot.savefig(path, bbox_inches="tight")
 
-    # 18.4.18: commented this out, dont know what it did
+    # was used to store metadata
     #push!(df, [i n tau sigma method precl metastab minstab])
     return result
 end

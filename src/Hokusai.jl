@@ -20,6 +20,11 @@ include("cluster.jl")
 include("plot.jl")
 include("api.jl")
 
+
+# TODO: move these diagnostics somewhere meaningful
+
+metastability(result) = trace(coupling(result)) / result.n
+
 function coupling(result)
     P = zeros(result.n, result.n)	
     by(result.data, :groupby) do subjdata	
@@ -32,8 +37,11 @@ function coupling(result)
     rownormalize(P)
 end
 
-metastability(result) = trace(coupling(result)) / result.n
 
-export cluster, plot, coupling, metastability
+try
+    readdata!()
+catch
+    warn("could not load data")
+end
 
 end

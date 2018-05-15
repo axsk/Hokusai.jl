@@ -3,19 +3,20 @@
 A julia package for clustering spatial timeseries, like for example eye-tracking data, based on PCCA+.
 
 ## Installation
-Requires Julia 0.4. Once the repository is public one can install the Package with
+Requires Julia 0.6. 
+- Install the package:
 ```julia
-Pkg.clone("giturl")
+Pkg.clone("https://github.com/axsk/hokusai")
 ```
-Until then use
+- Copy the data file "sallsac_Hokusai.seq" into the packages data directory (~/.julia/v0.6/Hokusai/data).
+- Test the package:
 ```julia
-include("src/Hokusai.jl")
+Pkg.test("Hokusai")
 ```
 
 ## Basic usage
-```julia
-cluster(data, n; tau=50, sigma=100, precluster=0, sort=:size, method=:scaling)
-```
+See the test file
+
 
 - `data` is a DataFrame containing the x-/y-coordinates in the first two columns, the relative time in the third and an identifier for aggregation in the fourth column, allowing clustering of multiple test executions.
 - `n` denotes the desired number of clusters.
@@ -31,14 +32,10 @@ Accepted values: `:scaling` (Weber), `:metastability` (Deuflhard), `:crispness` 
 
 
 ## todo
-- :kmeans as method
-- fix interactive plotting
-- parameter optimization
-- cleanup history, move to Hokusai.jl repo (remove/keep partial data?)
 - think about pi
-- automatic tau/gamma
-- automatic n (which method in nonreversible case?)
-- write tests
+- parameter optimization
+-- automatic tau/gamma
+-- automatic n (which method in nonreversible case?)
 
 ## how to choose tau/sigma:
 - we want tau to measure every fixation, -> min fixdur?
