@@ -1,3 +1,5 @@
+# TODO: still containing code snippets for the rate-matrix case, which did not work so far..
+
 type PccapResult
     assignments::Vector # discrete cluster assignment
     counts::Vector
@@ -21,6 +23,7 @@ function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling)
     else error("no valid pcca+ objective method")
     end
 
+    # TODO: why n>2
     n>2 && (A=opt(A, X, obj))
 
     chi = X*A
@@ -92,19 +95,25 @@ function feasible(A,X)
     A / sum(A[1,:])
 end
 
+# maximal scaling condition (source?)
 function I1(A,X)
     sum(maximum(X*A,1))
 end
 
+# metastability criterion, cf. Deuflhard (2000)
+# TODO: where does this come from?
 function I2(A,λ)
     n = size(A,1)
     trace = 0
     for i = 1:n, j = 1:n
-        trace += real(λ[i]) * A[i,j]^2 / A[1,j] # TODO: check if takin real is the right approach to complex λ
+        trace += real(λ[i]) * A[i,j]^2 / A[1,j] # TODO: check if taking the real part is the right approach to complex λ
     end
     return trace
 end
 
+# crispness criterion, cf. Roeblitz (2013)
+# only applies if X is normalized (eq. 8)
+# TODO: check does this apply?
 function I3(A)
     n = size(A,1)
     trace = 0

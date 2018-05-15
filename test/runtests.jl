@@ -2,16 +2,15 @@ using Hokusai
 
 ## PCCA+ tests
 
-P=[.5 .5 0; .5 .5 0; 0 0 1]
+# TODO: write better tests
+
+P=[.5 .5 0 0; .5 .5 0 0; 0 0 1 0; 0 0 0 1]
 for m in [:scaling, :metastability, :crispness]
-    res = Hokusai.pccap(P, 2, method = m)
-    # TODO: make these pass!
-    try
-        @assert res.assignments[1] == res.assignments[2]
-        @assert res.assignments[2] != res.assignments[3]
-    catch
-        warn("pcca+ seems to be broken (m=$m)")
-    end
+    res = Hokusai.pccap(P, 3, method = m)
+    @assert res.assignments[1] == res.assignments[2]
+    @assert res.assignments[1] != res.assignments[3]
+    @assert res.assignments[1] != res.assignments[4]
+    @assert res.assignments[3] != res.assignments[4] 
 end
 
 ## Hokusai tests

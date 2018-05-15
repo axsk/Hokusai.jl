@@ -6,6 +6,7 @@ end
 
 rownormalize(M) = M ./ sum(M,2)
 
+# TODO: note this never really worked
 # create rate matrix
 function makeW(data, sigma, grid)
     data[:index] = 1:size(data,1)
