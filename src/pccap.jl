@@ -1,6 +1,3 @@
-using Optim
-using StatsBase
-
 type PccapResult
     assignments::Vector # discrete cluster assignment
     counts::Vector
@@ -21,7 +18,7 @@ function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling)
     if     method == :scaling        obj = A -> I1(A,X)
     elseif method == :metastability  obj = A -> I2(A,λ)
     elseif method == :crispness      obj = A -> I3(A)
-	else error("no valid pcca+ objective method")
+    else error("no valid pcca+ objective method")
     end
 
     n>2 && (A=opt(A, X, obj))
@@ -119,19 +116,19 @@ end
 
 function opt(A0, X, objective)
     function transform(A)
-      # cut out the fixed part
-      cA = A[2:end, 2:end]
-      # flatten matrix to vector for use in optimize
-      return reshape(cA,prod(size(cA)))
+        # cut out the fixed part
+        cA = A[2:end, 2:end]
+        # flatten matrix to vector for use in optimize
+        return reshape(cA,prod(size(cA)))
     end
 
     function transformback(tA)
-      # reshape back to matrix
-      cA = reshape(tA, size(A0,1)-1, size(A0,2)-1)
-      # unite with the fixed part
-      A = A0
-      A[2:end,2:end] = cA
-      return A
+        # reshape back to matrix
+        cA = reshape(tA, size(A0,1)-1, size(A0,2)-1)
+        # unite with the fixed part
+        A = A0
+        A[2:end,2:end] = cA
+        return A
     end
 
     obj(tA) = -objective(feasible(transformback(tA), X))
