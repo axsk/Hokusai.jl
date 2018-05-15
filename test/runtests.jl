@@ -19,7 +19,7 @@ end
 img = 1
 n   = 5
 
-alldata = Hokusai.readdata()
+alldata = Hokusai.readdata!()
 imgdata = Hokusai.filterdata(alldata, img)
 Hokusai.cluster(imgdata[[:fposx, :fposy, :fixdur, :subj]], n, precluster=100)
 Hokusai.savecl(img, n, 50, 50, precl=100, folder=tempdir())

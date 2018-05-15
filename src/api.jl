@@ -1,12 +1,7 @@
-const left = 52
-const right = 69
-data = readtable("sallsac_Hokusai.seq", separator = '\t');
+datapath = joinpath(@__DIR__, "..", "data")
 
-function loadresults()
-    #df = DataFrame(img=Any[], n=Any[], tau=Any[], simga=Any[], method=Any[], precl=Any[], metastab=Any[], minstab=Any[])
-    df = readtable("results.csv")
-    df[:method] = DataArray{Symbol}(df[:method]) # necassary to write symbols into column
-    df
+function readdata!(datafile = joinpath(datapath, "sallsac_Hokusai.seq"))
+    global data = readtable(datafile, separator = '\t')
 end
 
 function filterdata(data, image)
@@ -63,7 +58,7 @@ function savecl(i, n, tau, sigma; method=:scaling, precl=0, overwrite=false, fol
 
     PyPlot.figure()
     PyPlot.axis(:off)
-    Hokusai.plot(result, "$imgfile.jpg", imgdata[1,:width], imgdata[1,:height])
+    Hokusai.plot(result, joinpath(datapath, "$imgfile.jpg"), imgdata[1,:width], imgdata[1,:height])
 
     W = Hokusai.coupling(result)
     metastab = round(trace(W)*100/n, 2)
@@ -78,10 +73,4 @@ function savecl(i, n, tau, sigma; method=:scaling, precl=0, overwrite=false, fol
     # 18.4.18: commented this out, dont know what it did
     #push!(df, [i n tau sigma method precl metastab minstab])
     return result
-end;
-
-# WIP
-function sample(i, n)
-    data = df[df[:img] == i && df[:n] == n]
 end
-
