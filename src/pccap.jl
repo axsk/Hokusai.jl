@@ -1,19 +1,19 @@
-# TODO: still containing code snippets for the rate-matrix case, which did not work so far..
+# TODO: take a look at the whole feasiblization/optimization routine
 
-type PccapResult
+struct PccapResult
     assignments::Vector # discrete cluster assignment
     counts::Vector
     chi::Matrix         # fuzzy cluster assignment
 end
 
-function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling)
+function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling, ratematrix=false)
     if pi == nothing
-        which = ispmatrix(P)? :LM : :SM
+        which = ratematrix ? :SM : :LM
         pi = abs.(vec((Array{Float64})(eigs(P';nev=1, which=which)[2])))
         pi = pi / sum(pi)                     # => first col of X is one
     end
 
-    X, λ = schurvectors(P, pi, n)
+    X, λ = schurvectors(P, pi, n, ratematrix)
 
     A=feasible(guess(X),X)
 
@@ -23,7 +23,7 @@ function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling)
     else error("no valid pcca+ objective method")
     end
 
-    # TODO: why n>2
+    # TODO: why n>2, what if n=2?!
     n>2 && (A=opt(A, X, obj))
 
     chi = X*A
@@ -39,17 +39,10 @@ function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling)
     return PccapResult(assignments, counts, chi)
 end
 
-
-function ispmatrix(P)
-    # decide whether P is a probability or rate matrix
-    # check whether first row sum is close to one
-    return abs(sum(P[1,:]) - 1) < 0.01
-end
-
-function schurvectors(P, pi, n)	
+function schurvectors(P, pi, n, ratematrix)
     Pw = diagm(sqrt.(pi))*P*diagm(1./sqrt.(pi)) # rescale to keep markov property
     Sw = schurfact!(Pw)                       # returns orthonormal vecs by def
-    Xw, λ = selclusters!(Sw, n, ispmatrix(P))
+    Xw, λ = selclusters!(Sw, n, ratematrix)
     X  = diagm(1./sqrt.(pi)) * Xw              # scale back
     X  = X[1,1]>0 ? X : -X
     X, λ
@@ -57,8 +50,8 @@ end
 
 # select the schurvectors corresponding to the n abs-largest eigenvalues
 # if reverse==true select highest abs value, otherwise select lowest (for rate matrices)
-function selclusters!(S, n, reverse)
-    ind = sortperm(abs.(S[:values]), rev=reverse) # get indices for largest eigenvalues
+function selclusters!(S, n, ratematrix)
+    ind = sortperm(abs.(S[:values]), rev=!ratematrix) # get indices for largest eigenvalues
     select = zeros(Bool, size(ind))            # create selection vector
     select[ind[1:n]] = true
     S = ordschur!(S, select)                  # reorder selected vectors to the left
