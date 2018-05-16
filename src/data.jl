@@ -88,9 +88,10 @@ end
 function cluster(data::DataFrame, n; tau=50, sigma=100, precluster=0, sort=:size, method=:scaling, symmetrize=false)
     ts = TimeSeries[]
     by(data, :subj) do d
-        times = cumsum(d[:fixdur])
-        points = hcat(d[:fposx], d[:fposy])
+        times = Array(cumsum(d[:fixdur])) ::Vector
+        points = Array(hcat(d[:fposx], d[:fposy])) ::Matrix{Float64}
         push!(ts, TimeSeries(times, points))
+        0 # since the return value from push crashes the "by" construction
     end
     ass = cluster(ts, n, tau=tau, sigma=sigma, precluster=precluster, sort=sort, method=method, symmetrize=symmetrize)
 
@@ -110,7 +111,7 @@ function plot(result::HokusaiResult, imagepath::String, width, height)
     i=0
     by(data, :cluster) do data
 	i+=1
-	PyPlot.plot(Array(data[:x]), Array(data[:y]),
+	PyPlot.plot(Array(data[:fposx]), Array(data[:fposy]),
 		    "o", markerfacecolor=(colors[i].r, colors[i].g, colors[i].b), alpha=1)
     end
 

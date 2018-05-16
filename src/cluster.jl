@@ -14,7 +14,7 @@ struct TimeSeries
 end
 
 points(ts::TimeSeries) = ts.points
-points(tss::Vector{TimeSeries}) = vcat((points(ts) for ts in tss))
+points(tss::Vector{TimeSeries}) = vcat((points(ts) for ts in tss)...)
 
 "high level api interface
 supports multiple timeseries, preclustering, sorting, symmetrization"
@@ -48,15 +48,16 @@ function countmatrix(ts::TimeSeries, sigma, tau, grid::Array)
     C = zeros(n, n)
     m = getGaussMembership(ts.points, grid, sigma) # TODO: dont know anymore why i computed this as batch and not just per fixation in the loop below...
 
-    timegrid = div(ts.times, sigma)
+    timegrid = div.(ts.times, sigma)
 
     last = 1
-    for i = 1:length(times)
+    for i = 1:length(timegrid)
         steps = timegrid[i] - timegrid[last]
         steps == 0 && continue
         C += m[last,:]' * m[i,:] * steps
         last = i
     end
+    C
 end
 
 countmatrix(tss::Vector{TimeSeries}, sigma, tau, grid) =

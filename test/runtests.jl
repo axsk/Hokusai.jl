@@ -10,7 +10,7 @@ for m in [:scaling, :metastability, :crispness]
     @assert res.assignments[1] == res.assignments[2]
     @assert res.assignments[1] != res.assignments[3]
     @assert res.assignments[1] != res.assignments[4]
-    @assert res.assignments[3] != res.assignments[4] 
+    @assert res.assignments[3] != res.assignments[4]
 end
 
 ## Hokusai tests
