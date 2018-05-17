@@ -9,13 +9,15 @@ end
 function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling, ratematrix=false)
     if pi == nothing
         which = ratematrix ? :SM : :LM
-        pi = abs.(vec((Array{Float64})(eigs(P';nev=1, which=which)[2])))
+        pi = eigs(P', nev=1, which=which)[2]
+        @assert isreal(pi)
+        pi = abs.(pi) |> vec
         pi = pi / sum(pi)                     # => first col of X is one
     end
 
     X, λ = schurvectors(P, pi, n, ratematrix)
 
-    A=feasible(guess(X),X)
+    A = feasible(guess(X),X)
 
     if     method == :scaling        obj = A -> I1(A,X)
     elseif method == :metastability  obj = A -> I2(A,λ)
@@ -28,9 +30,8 @@ function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling, ratematrix=fa
 
     chi = X*A
 
-    assignments = vec(mapslices(indmax,chi,2))
+    assignments = mapslices(indmax,chi,2) |> vec
 
-    #counts = hist(assignments)[2] # deprecated
     counts = zeros(Int, n)
     for a in assignments
         counts[a] += 1
@@ -117,23 +118,15 @@ function I3(A)
 end
 
 function opt(A0, X, objective)
-    function transform(A)
-        # cut out the fixed part
-        cA = A[2:end, 2:end]
-        # flatten matrix to vector for use in optimize
-        return reshape(cA,prod(size(cA)))
+    A = copy(A0)
+    Av = view(A, 2:size(A,1), 2:size(A,2)) # view on the variable part
+
+    function obj(a)
+        Av[:] = a
+        -objective(feasible(A, X))
     end
 
-    function transformback(tA)
-        # reshape back to matrix
-        cA = reshape(tA, size(A0,1)-1, size(A0,2)-1)
-        # unite with the fixed part
-        A = A0
-        A[2:end,2:end] = cA
-        return A
-    end
-
-    obj(tA) = -objective(feasible(transformback(tA), X))
-    result = optimize(obj, transform(A0), NelderMead())
-    return feasible(transformback(result.minimizer), X)
+    result = optimize(obj, Av[:], NelderMead())
+    Av[:] = result.minimizer
+    return feasible(A, X)
 end
