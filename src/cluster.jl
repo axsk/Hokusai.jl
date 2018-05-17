@@ -48,13 +48,19 @@ function countmatrix(ts::TimeSeries, sigma, tau, grid::Array)
     C = zeros(n, n)
     m = getGaussMembership(ts.points, grid, sigma) # TODO: dont know anymore why i computed this as batch and not just per fixation in the loop below...
 
-    timegrid = div.(ts.times, sigma)
+    timeframes = div.(ts.times, sigma)
 
     last = 1
-    for i = 1:length(timegrid)
-        steps = timegrid[i] - timegrid[last]
-        steps == 0 && continue
-        C += m[last,:]' * m[i,:] * steps
+    for i = 1:length(timeframes)
+        steps = timeframes[i] - timeframes[last]
+        if steps == 0
+            # still the same frame
+            continue
+        elseif steps > 1
+            # frames skipped, count self-transitions
+            C += m[last,:]' * m[last,:] * (steps - 1)
+        end
+        C += m[last,:]' * m[i,:]
         last = i
     end
     C
