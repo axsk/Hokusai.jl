@@ -58,9 +58,9 @@ function countmatrix(ts::TimeSeries, sigma, tau, grid::Array)
             continue
         elseif steps > 1
             # frames skipped, count self-transitions
-            C += m[last,:]' * m[last,:] * (steps - 1)
+            C += m[last,:] * m[last,:]' * (steps - 1)
         end
-        C += m[last,:]' * m[i,:]
+        C += m[last,:] * m[i,:]'
         last = i
     end
     C
