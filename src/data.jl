@@ -1,21 +1,11 @@
-type HokusaiResult
-    data
-    assignments
-    n
-    tau
-    sigma
-    P
-end
-
-function readdata!(datafile = joinpath(datapath, "sallsac_Hokusai.seq"))
-    global data = readtable(datafile, separator = '\t')
-end
-
 # initialize data
+using DataFrames, CSV, PyPlot
+
 datapath = joinpath(@__DIR__, "..", "data")
-global data
+
+global DATA
 try
-    readdata!()
+    DATA = CSV.read(joinpath(datapath, "sallsac_Hokusai.seq"), delim = '\t')
 catch
     warn("could not load data")
 end
@@ -46,76 +36,43 @@ function filterdata(data::DataFrame, image)
     end
 
     return data
-end;
-
-# convenience function for clustering, plotting and saving a run (written for batch use)
-function savecl(i, n, tau, sigma; method=:scaling, precl=0, overwrite=false, folder="out", caption=true, symmetrize=false)
-    kmeans = method == :kmeans
-    path = kmeans ? "$folder/img$i n$n kmeans.png" : "$folder/img$i n$n tau$tau sigma$sigma method$method precl$precl symm$symmetrize.png"
-
-    if isfile(path) && !overwrite
-        print("Clustering already existing. Skipping...")
-        return
-    end
-
-    print("computing $path \n")
-    imgdata = filterdata(data,i)
-
-    PyPlot.figure(figsize=(10, 5))
-
-    result = Hokusai.cluster(imgdata[[:fposx, :fposy, :fixdur, :subj]], n, tau=tau, sigma=sigma, precluster=precl, sort=:size, method=method, symmetrize=symmetrize)
-
-    imgfile = string(i)[1]
-
-    PyPlot.figure()
-    PyPlot.axis(:off)
-    Hokusai.plot(result, joinpath(datapath, "$imgfile.jpg"), imgdata[1,:width], imgdata[1,:height])
-
-    if caption
-        PyPlot.text(0,0,"img=$i n=$n tau=$tau sigma=$sigma\nmethod=$method precl=$precl")
-    end
-
-    println("saving image")
-    mkpath(folder)
-    PyPlot.savefig(path, bbox_inches="tight")
-
-    # was used to store metadata
-    #push!(df, [i n tau sigma method precl metastab minstab])
-    return result
 end
 
-# legacy cluster wrapper
-function cluster(data::DataFrame, n; tau=50, sigma=100, precluster=0, sort=:size, method=:scaling, symmetrize=false)
+function TimeSeries(data::DataFrame)
     ts = TimeSeries[]
     by(data, :subj) do d
         times = Array(cumsum(d[:fixdur])) ::Vector
         points = Array(hcat(d[:fposx], d[:fposy])) ::Matrix{Float64}
         push!(ts, TimeSeries(times, points))
-        0 # since the return value from push crashes the "by" construction
+        nothing # return value for by construct / hotfix
     end
-    ass = cluster(ts, n, tau=tau, sigma=sigma, precluster=precluster, sort=sort, method=method, symmetrize=symmetrize)
-
-    data[:cluster] = ass
-    HokusaiResult(data, ass, n, tau, sigma, nothing)
+    ts
 end
 
-function plot(result::HokusaiResult, imagepath::String, width, height)
-    data = result.data
-    img = PyPlot.imread(imagepath)
+## convenience wrapper for plotting
+function run(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; kwargs...)
+    ass = cluster(ts, n, sigma, tau; kwargs...)
+    figure()
+    plot(ts, ass)
+end
 
-    PyPlot.imshow(img, extent=(0,width,height,0))
+run(d::DataFrame, n, sigma, tau; kwargs...) = run(TimeSeries(d), n, sigma, tau; kwargs...)
 
-    colors = distinguishable_colors(maximum(Array(data[:cluster])), lchoices=linspace(60, 255, 5))
-    #lchoices guarantees a miminmal luminance here
+function run(img::Integer, n, sigma, tau; kwargs...)
+    run(filterdata(DATA, img), n, sigma, tau; kwargs...)
+    plotimg(img)
+end
 
-    i=0
-    by(data, :cluster) do data
-	i+=1
-	PyPlot.plot(Array(data[:fposx]), Array(data[:fposy]),
-		    "o", markerfacecolor=(colors[i].r, colors[i].g, colors[i].b), alpha=1)
-    end
+## plot functions
+function plot(ts::Union{TimeSeries, Vector{TimeSeries}}, ass)
+    ps = points(ts)
+    PyPlot.scatter(ps[:,1], ps[:,2], c=ass)
+    gcf()
+end
 
-    PyPlot.autoscale(tight=true)
+plotimg(img::Integer) = plotimg(joinpath(datapath,"$img.jpg"))
 
-    return plt
+function plotimg(path::String)
+    PyPlot.imread(path) |> PyPlot.imshow
+    PyPlot.gcf()
 end

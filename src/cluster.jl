@@ -18,7 +18,7 @@ points(tss::Vector{TimeSeries}) = vcat((points(ts) for ts in tss)...)
 
 "high level api interface
 supports multiple timeseries, preclustering, sorting, symmetrization"
-function cluster(ts::Union{TimeSeries, Vector{TimeSeries}}, n; tau=50, sigma=100, precluster=0, sort=:size, method=:scaling, symmetrize=false)
+function cluster(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; precluster=0, sort=:size, method=:scaling, symmetrize=false)
     method == :kmeans && return Clustering.kmeans(points(ts)', n).assignments
 
     grid = points(ts)

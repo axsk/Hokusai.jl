@@ -1,10 +1,8 @@
 module Hokusai
 
-using DataArrays, DataFrames
 using Distances
 using Clustering
-using PyPlot, Colors
-using Optim, StatsBase
+using Optim
 
 include("pccap.jl")
 include("cluster.jl")
