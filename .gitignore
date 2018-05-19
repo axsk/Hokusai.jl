@@ -1,2 +1,6 @@
 # dont store the data file
 *.seq
+out/
+notebooks/.ipynb_checkpoints
+notebooks/out
+notebooks/outsym
