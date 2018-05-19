@@ -67,7 +67,7 @@ function countmatrix(ts::TimeSeries, sigma, tau, grid::Array)
 end
 
 countmatrix(tss::Vector{TimeSeries}, sigma, tau, grid) =
-    mean(countmatrix(ts, sigma, tau, grid) for ts in tss)
+    sum(countmatrix(ts, sigma, tau, grid) for ts in tss)
 
 function getGaussMembership(fixations, centers, sigma)
     sqdist = pairwise(SqEuclidean(), fixations', centers')
