@@ -28,11 +28,7 @@ function cluster(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; precl
         kmass = km.assignments
     end
 
-    C = countmatrix(ts, sigma, tau, grid)
-    if symmetrize
-        C = (C + C') / 2
-    end
-    P = rownormalize(C)
+    P = transitionmatrix(ts, sigma, tau, grid, symmetrize)
 
     ass = pccap(P, n, method=method).assignments
     if precluster > 0
@@ -41,6 +37,13 @@ function cluster(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; precl
     ass = sortcluster(ts, ass, sort)
     return ass
 end
+
+"given a countmatrix, compute the transitionmatrix"
+transitionmatrix(C::Matrix, symmetrize) = 
+    rownormalize(symmetrize ? C + C' : C)
+
+transitionmatrix(ts::Union{TimeSeries, Vector{TimeSeries}}, sigma, tau, grid, symmetrize) = 
+    transitionmatrix(countmatrix(ts, sigma, tau, grid), symmetrize)
 
 "transition matrix for a single timeseries"
 function countmatrix(ts::TimeSeries, sigma, tau, grid::Array)
