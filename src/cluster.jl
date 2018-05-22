@@ -81,7 +81,7 @@ function sortcluster(ts, ass, method)
     if method == :none
         return ass
     elseif method == :size
-        criterion = [-length(ass.==c) for c=1:maximum(ass)]
+        criterion = [-count(ass.==c) for c=1:maximum(ass)]
     elseif method == :x
         # TODO: implement
     elseif method == :time
