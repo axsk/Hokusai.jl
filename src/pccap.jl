@@ -17,7 +17,6 @@ function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling, ratematrix=fa
 
     X, λ = schurvectors(P, pi, n, ratematrix)
 
-    A = feasible(guess(X),X)
 
     if     method == :scaling        obj = A -> I1(A,X)
     elseif method == :metastability  obj = A -> I2(A,λ)
@@ -25,7 +24,8 @@ function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling, ratematrix=fa
     else error("no valid pcca+ objective method")
     end
 
-    # TODO: why n>2, what if n=2?!
+    # TODO: why n>2, what if n=2? is guessinit() already the optimium?
+    A = guessinit(X)
     n>2 && (A=opt(A, X, obj))
 
     chi = X*A
@@ -60,7 +60,7 @@ function selclusters!(S, n, ratematrix)
 end
 
 # compute initial guess based on indexmap
-guess(X) = inv(X[indexmap(X), :])
+guessinit(X) = feasiblize!(inv(X[indexmap(X), :]), X)
 
 function indexmap(X)
     # get indices of rows of X to span the largest simplex
@@ -83,7 +83,7 @@ function indexmap(X)
     return ind
 end
 
-function feasible(A,X)
+function feasiblize!(A,X)
     A[:,1] = -sum(A[:,2:end], 2)
     A[1,:] = -minimum(X[:,2:end] * A[2:end,:], 1)
     A / sum(A[1,:])
@@ -123,10 +123,10 @@ function opt(A0, X, objective)
 
     function obj(a)
         Av[:] = a
-        -objective(feasible(A, X))
+        -objective(feasiblize!(A, X))
     end
 
     result = optimize(obj, Av[:], NelderMead())
     Av[:] = result.minimizer
-    return feasible(A, X)
+    return feasiblize!(A, X)
 end
