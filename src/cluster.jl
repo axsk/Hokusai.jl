@@ -48,25 +48,27 @@ transitionmatrix(ts::Union{TimeSeries, Vector{TimeSeries}}, sigma, tau, grid, sy
 "transition matrix for a single timeseries"
 function countmatrix(ts::TimeSeries, sigma, tau, grid::Array)
     n = size(grid, 1)
-    C = zeros(n, n)
     m = getGaussMembership(ts.points, grid, sigma) # TODO: dont know anymore why i computed this as batch and not just per fixation in the loop below...
 
-    timeframes = div.(ts.times, sigma)
-
+    timeframes = div.(ts.times, tau)
     last = 1
-    for i = 1:length(timeframes)
+    inds = [1]
+    repeats = [1]
+    for i = 2:length(timeframes)
         steps = timeframes[i] - timeframes[last]
         if steps == 0
             # still the same frame
             continue
         elseif steps > 1
             # frames skipped, count self-transitions
-            C += m[last,:] * m[last,:]' * (steps - 1)
+            push!(inds, last)
+            push!(repeats, steps-1)
         end
-        C += m[last,:] * m[i,:]'
+        push!(inds, i)
+        push!(repeats, 1)
         last = i
     end
-    C
+    m[inds[1:end-1],:]' .* repeats[2:end]' * m[inds[2:end],:]
 end
 
 countmatrix(tss::Vector{TimeSeries}, sigma, tau, grid) =
