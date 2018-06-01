@@ -1,12 +1,15 @@
-# TODO: open questions:
-# - how do we combine multiple timeseries:
-# a countmatrix |> mean |> rownormalize (weights by size of timeseries)
-# b countmatrix |> rownormalize |> mean (bad for outliers/rare points)
-# - when do we symmetrize
-# c countmatrix |> symmetrize |> rownormalize (has interpretation)
-# d countmatrix |> rownormalize |> symmetrize (lacks interpretation?)
-
-# the code below implements options a, d
+#= 
+CHOICES:
+- how do we combine multiple timeseries:
+  [x] countmatrix |> mean |> rownormalize (weights by size of timeseries)
+  [ ] countmatrix |> rownormalize |> mean (weights every proband the same 
+      - TODO: wouldnt ^^ be better?
+        - from a bayesian perspective weighting every proband the same corresponds to a uniform prior on the proband choice
+        - question: how will this treat rare events/outliers
+- when do we symmetrize:
+  [x] countmatrix |> symmetrize |> rownormalize (has interpretation)
+  [ ] countmatrix |> rownormalize |> symmetrize (lacks interpretation? => seems just wrong)
+=#
 
 struct TimeSeries
     times
