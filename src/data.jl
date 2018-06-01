@@ -10,26 +10,31 @@ catch
     warn("could not load data")
 end
 
-# TODO: add filters for mirrored, starting location, ..
+# TODO: think about a clean filtering interface
 function filterdata(data::DataFrame, image)
     # select the corresponding image
     data = data[data[:image] .== "$image.jpg", :]
 
+    # TODO: recycle this deprecated stuff?
     # consider only one starting position
-    const left = 52
-    const right = 69
-    #data = data[data[:fixcrosspos] .== left]
+    # const left = 52
+    # const right = 69
+    # data = data[data[:fixcrosspos] .== left]
 
-    # "disable" grouping by subjects
-    #data[:subj] = 0
+    # experimental: "disable" grouping by subjects (MUTATING!)
+    # data[:subj] = 0
 
     # scale/filter coordinates to 0->width, 0->height
     width, height = data[1,:width], data[1,:height]
     dx, dy = (1280-width)/2, (1024-height)/2
+    
     data[:fposx] = data[:fposx] - dx
     data[:fposy] = data[:fposy] - dy
     data = data[((data[:fposx] .> 0) .& (data[:fposy] .> 0) .& (data[:fposx] .< width) .& (data[:fposy] .< height)) , :]
 
+    # TODO: this is not the best way to handle this 
+    # - it would be nice to be able to just overlay un- and mirrored data in a comparable way, which this does not do
+    # - right now `image` can be either an int or the string from `data[:image]`, returning corresponding mirrored data
     # mirror x coordinates of mirrored version to make it comparable
     if ismatch(r"mirrored", string(image))
         data[:fposx] = width - data[:fposx]
