@@ -1,21 +1,22 @@
-# TODO: still containing code snippets for the rate-matrix case, which did not work so far..
+# TODO: take a look at the whole feasiblization/optimization routine
 
-type PccapResult
+struct PccapResult
     assignments::Vector # discrete cluster assignment
     counts::Vector
     chi::Matrix         # fuzzy cluster assignment
 end
 
-function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling)
+function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling, ratematrix=false)
     if pi == nothing
-        which = ispmatrix(P)? :LM : :SM
-        pi = abs.(vec((Array{Float64})(eigs(P';nev=1, which=which)[2])))
+        which = ratematrix ? :SM : :LM
+        pi = eigs(P', nev=1, which=which)[2]
+        @assert isreal(pi)
+        pi = abs.(pi) |> vec
         pi = pi / sum(pi)                     # => first col of X is one
     end
 
-    X, λ = schurvectors(P, pi, n)
+    X, λ = schurvectors(P, pi, n, ratematrix)
 
-    A=feasible(guess(X),X)
 
     if     method == :scaling        obj = A -> I1(A,X)
     elseif method == :metastability  obj = A -> I2(A,λ)
@@ -23,14 +24,14 @@ function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling)
     else error("no valid pcca+ objective method")
     end
 
-    # TODO: why n>2
+    # TODO: why n>2, what if n=2? is guessinit() already the optimium?
+    A = guessinit(X)
     n>2 && (A=opt(A, X, obj))
 
     chi = X*A
 
-    assignments = vec(mapslices(indmax,chi,2))
+    assignments = mapslices(indmax,chi,2) |> vec
 
-    #counts = hist(assignments)[2] # deprecated
     counts = zeros(Int, n)
     for a in assignments
         counts[a] += 1
@@ -39,17 +40,10 @@ function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling)
     return PccapResult(assignments, counts, chi)
 end
 
-
-function ispmatrix(P)
-    # decide whether P is a probability or rate matrix
-    # check whether first row sum is close to one
-    return abs(sum(P[1,:]) - 1) < 0.01
-end
-
-function schurvectors(P, pi, n)	
+function schurvectors(P, pi, n, ratematrix)
     Pw = diagm(sqrt.(pi))*P*diagm(1./sqrt.(pi)) # rescale to keep markov property
     Sw = schurfact!(Pw)                       # returns orthonormal vecs by def
-    Xw, λ = selclusters!(Sw, n, ispmatrix(P))
+    Xw, λ = selclusters!(Sw, n, ratematrix)
     X  = diagm(1./sqrt.(pi)) * Xw              # scale back
     X  = X[1,1]>0 ? X : -X
     X, λ
@@ -57,8 +51,8 @@ end
 
 # select the schurvectors corresponding to the n abs-largest eigenvalues
 # if reverse==true select highest abs value, otherwise select lowest (for rate matrices)
-function selclusters!(S, n, reverse)
-    ind = sortperm(abs.(S[:values]), rev=reverse) # get indices for largest eigenvalues
+function selclusters!(S, n, ratematrix)
+    ind = sortperm(abs.(S[:values]), rev=!ratematrix) # get indices for largest eigenvalues
     select = zeros(Bool, size(ind))            # create selection vector
     select[ind[1:n]] = true
     S = ordschur!(S, select)                  # reorder selected vectors to the left
@@ -66,7 +60,7 @@ function selclusters!(S, n, reverse)
 end
 
 # compute initial guess based on indexmap
-guess(X) = inv(X[indexmap(X), :])
+guessinit(X) = feasiblize!(inv(X[indexmap(X), :]), X)
 
 function indexmap(X)
     # get indices of rows of X to span the largest simplex
@@ -89,7 +83,7 @@ function indexmap(X)
     return ind
 end
 
-function feasible(A,X)
+function feasiblize!(A,X)
     A[:,1] = -sum(A[:,2:end], 2)
     A[1,:] = -minimum(X[:,2:end] * A[2:end,:], 1)
     A / sum(A[1,:])
@@ -124,23 +118,15 @@ function I3(A)
 end
 
 function opt(A0, X, objective)
-    function transform(A)
-        # cut out the fixed part
-        cA = A[2:end, 2:end]
-        # flatten matrix to vector for use in optimize
-        return reshape(cA,prod(size(cA)))
+    A = copy(A0)
+    Av = view(A, 2:size(A,1), 2:size(A,2)) # view on the variable part
+
+    function obj(a)
+        Av[:] = a
+        -objective(feasiblize!(A, X))
     end
 
-    function transformback(tA)
-        # reshape back to matrix
-        cA = reshape(tA, size(A0,1)-1, size(A0,2)-1)
-        # unite with the fixed part
-        A = A0
-        A[2:end,2:end] = cA
-        return A
-    end
-
-    obj(tA) = -objective(feasible(transformback(tA), X))
-    result = optimize(obj, transform(A0), NelderMead())
-    return feasible(transformback(result.minimizer), X)
+    result = optimize(obj, Av[:], NelderMead())
+    Av[:] = result.minimizer
+    return feasiblize!(A, X)
 end

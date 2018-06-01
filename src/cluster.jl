@@ -1,119 +1,101 @@
+#= 
+CHOICES:
+- how do we combine multiple timeseries:
+  [x] countmatrix |> mean |> rownormalize (weights by size of timeseries)
+  [ ] countmatrix |> rownormalize |> mean (weights every proband the same 
+      - TODO: wouldnt ^^ be better?
+        - from a bayesian perspective weighting every proband the same corresponds to a uniform prior on the proband choice
+        - question: how will this treat rare events/outliers
+- when do we symmetrize:
+  [x] countmatrix |> symmetrize |> rownormalize (has interpretation)
+  [ ] countmatrix |> rownormalize |> symmetrize (lacks interpretation? => seems just wrong)
+=#
+
+struct TimeSeries
+    times
+    points
+end
+
+points(ts::TimeSeries) = ts.points
+points(tss::Vector{TimeSeries}) = vcat((points(ts) for ts in tss)...)
+
+"high level api interface
+supports multiple timeseries, preclustering, sorting, symmetrization"
+function cluster(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; precluster=0, sort=:size, method=:scaling, symmetrize=false)
+    method == :kmeans && return Clustering.kmeans(points(ts)', n).assignments
+
+    grid = points(ts)
+    if precluster > 0
+        km = Clustering.kmeans(grid', precluster)
+        grid = km.centers'
+        kmass = km.assignments
+    end
+
+    P = transitionmatrix(ts, sigma, tau, grid, symmetrize)
+
+    ass = pccap(P, n, method=method).assignments
+    if precluster > 0
+        ass = ass[kmass]
+    end
+    ass = sortcluster(ts, ass, sort)
+    return ass
+end
+
+"given a countmatrix, compute the transitionmatrix"
+transitionmatrix(C::Matrix, symmetrize) = 
+    rownormalize(symmetrize ? C + C' : C)
+
+transitionmatrix(ts::Union{TimeSeries, Vector{TimeSeries}}, sigma, tau, grid, symmetrize) = 
+    transitionmatrix(countmatrix(ts, sigma, tau, grid), symmetrize)
+
+"transition matrix for a single timeseries"
+function countmatrix(ts::TimeSeries, sigma, tau, grid::Array)
+    n = size(grid, 1)
+    m = getGaussMembership(ts.points, grid, sigma) # TODO: dont know anymore why i computed this as batch and not just per fixation in the loop below...
+
+    timeframes = div.(ts.times, tau)
+    last = 1
+    inds = [1]
+    repeats = [1]
+    for i = 2:length(timeframes)
+        steps = timeframes[i] - timeframes[last]
+        if steps == 0
+            # still the same frame
+            continue
+        elseif steps > 1
+            # frames skipped, count self-transitions
+            push!(inds, last)
+            push!(repeats, steps-1)
+        end
+        push!(inds, i)
+        push!(repeats, 1)
+        last = i
+    end
+    m[inds[1:end-1],:]' .* repeats[2:end]' * m[inds[2:end],:]
+end
+
+countmatrix(tss::Vector{TimeSeries}, sigma, tau, grid) =
+    sum(countmatrix(ts, sigma, tau, grid) for ts in tss)
+
 function getGaussMembership(fixations, centers, sigma)
     sqdist = pairwise(SqEuclidean(), fixations', centers')
-    gausskernels = exp.(-sigma^(-2.) * sqdist)
+    gausskernels = exp.(-1/(2*sigma^2) * sqdist)
     rownormalize(gausskernels)
 end
 
 rownormalize(M) = M ./ sum(M,2)
 
-# TODO: note this never really worked
-# create rate matrix
-function makeW(data, sigma, grid)
-    data[:index] = 1:size(data,1)
-    fixations = Array(data[[:x,:y]])
-    centers   = grid == :none ? fixations : grid
-    gaussmemb = getGaussMembership(fixations, centers, sigma)
-    n = size(centers,1)
-    ratesum = zeros(Float64, n, n)
-    fromsum = zeros(Float64, n)
-
-    by(data, :groupby) do subjdata
-        # user periodic boundary
-        from = gaussmemb[subjdata[1:size(subjdata,1)|>collect, :index],:]
-        to   = gaussmemb[subjdata[vcat(2:size(subjdata,1),1), :index],:]
-        time = 1./       subjdata[1:size(subjdata,1)|>collect, :time]
-        ratesum += from' * (to .* time)
-        fromsum += sum(from', 2)
+function sortcluster(ts, ass, method)
+    if method == :none
+        return ass
+    elseif method == :size
+        criterion = [-count(ass.==c) for c=1:maximum(ass)]
+    elseif method == :x
+        # TODO: implement
+    elseif method == :time
+        # TODO: implement
     end
 
-    W = ratesum ./ fromsum
-
-    for i=1:n
-        W[i,i] = -(sum(W[i,:]) - W[i,i])
-    end
-    return W
+    p = invperm(sortperm(criterion)) # TODO: check if invperm belongs here
+    ass = [p[a] for a in ass]
 end
-
-global SymmetrizeP = false
-setSymmetrizeP(b::Bool) = (SymmetrizeP = b)
-
-function makeP(data, tau, sigma, grid, symmetrize)
-    data[:index] = 1:size(data,1)
-    from = (Int64)[]
-    to   = (Int64)[]
-
-    by(data, :groupby) do subjdata
-        abstime = cumsum(subjdata[:time])
-        offs = subjdata[1,:index] - 1
-        time = 0
-        iold = 1
-        while (true)
-            time += tau
-            inew = findfirst(t-> (t>=time), abstime) # find nearest fixation after current
-            inew == 0 && break
-            append!(from, [iold+offs])
-            append!(to,   [inew+offs])
-            iold = inew
-        end
-    end
-
-    fixations = Array(data[[:x,:y]])
-    centers   = grid == :none ? fixations : grid
-    gaussmemb = getGaussMembership(fixations, centers, sigma)
-
-    C = gaussmemb[from,:]'*gaussmemb[to,:]
-    if symmetrize
-        C = (C + C') / 2
-    end
-    P = rownormalize(C)
-end
-
-function sortcluster!(data; sort = :size)
-    methods = Dict(
-                   :size=>(cl-> -size(cl,1)),
-                   :x=>(cl->mean(cl[:x])))
-
-    res = by(data, :cluster, methods[sort])
-    ord = sort!(res, cols=[:x1])[:cluster]
-
-    inv = Array{Int8}(maximum(ord))
-    inv[ord]=1:size(ord,1)
-    data[:cluster] = inv[data[:cluster]]
-end
-
-function precluster_grid(data, precl)
-    (precl == 0) && return (:none, :none)
-    precl = minimum([precl, size(data)[1]])
-    km = Clustering.kmeans(Array(data[[:x, :y]])',precl)
-    grid = km.centers'
-    ass  = km.assignments
-    grid, ass
-end
-
-function cluster(data, n; tau=50, sigma=100, precluster=0, sort=:size, method=:scaling, symmetrize=false)
-    data = DataFrame(x=data[1], y=data[2], time=data[3], groupby=data[4])
-
-    method == :kmeans && return kmeans(data, n)
-
-    grid, kmass = precluster_grid(data, precluster)
-
-    P = tau==0 ? makeW(data, sigma, grid) : makeP(data, tau, sigma, grid, symmetrize)
-
-    ass = pccap(Array{Float64}(P), n, method=method).assignments
-    if precluster > 0
-        ass = ass[kmass]
-    end
-
-    data[:cluster] = ass
-    sortcluster!(data, sort = sort)
-
-    HokusaiResult(data, data[:cluster], n, tau, sigma, P)
-end
-
-function kmeans(data, n)
-    data = DataFrame(x=data[1], y=data[2], time=data[3], groupby=data[4])
-    data[:index] = 1:size(data,1)
-    data[:cluster] = Clustering.kmeans(Array(data[[:x, :y]])',n).assignments
-    HokusaiResult(data, data[:cluster], n, NaN, NaN, NaN)
-end
-
