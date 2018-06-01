@@ -20,8 +20,8 @@ See the test file
 
 - `data` is a DataFrame containing the x-/y-coordinates in the first two columns, the relative time in the third and an identifier for aggregation in the fourth column, allowing clustering of multiple test executions.
 - `n` denotes the desired number of clusters.
-- `tau` denotes the timestep used for creating the markov model
-- `sigma` denotes the variance used for the "spatial coupling".
+- `tau` denotes the timestep used for creating the markov jump process
+- `sigma` denotes the gaussian mixture standard deviation used for the "spatial coupling".
 - `precluster` specifies the number of preclusters to generate via kmeans, to improve performance. (use `0` for no preclustering)
 - `sort` denotes how the final clusters will be ordered.
 `:size` sorts by number of fixations in each cluster, and `:x` by the average horizontal position.
