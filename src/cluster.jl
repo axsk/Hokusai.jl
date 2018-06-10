@@ -19,6 +19,9 @@ end
 points(ts::TimeSeries) = ts.points
 points(tss::Vector{TimeSeries}) = vcat((points(ts) for ts in tss)...)
 
+times(ts::TimeSeries) = ts.times
+times(tss::Vector{TimeSeries}) = vcat((times(ts) for ts in tss)...)
+
 "high level api interface
 supports multiple timeseries, preclustering, sorting, symmetrization"
 function cluster(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; precluster=0, sort=:size, method=:scaling, symmetrize=false)
@@ -50,10 +53,12 @@ transitionmatrix(ts::Union{TimeSeries, Vector{TimeSeries}}, sigma, tau, grid, sy
 
 "transition matrix for a single timeseries"
 function countmatrix(ts::TimeSeries, sigma, tau, grid::Array)
-    n = size(grid, 1)
+    n = size(grid, 1) # number of gridpoints
+    C = zeros(n, n)
     m = getGaussMembership(ts.points, grid, sigma) # TODO: dont know anymore why i computed this as batch and not just per fixation in the loop below...
 
     timeframes = div.(ts.times, tau)
+
     last = 1
     inds = [1]
     repeats = [1]

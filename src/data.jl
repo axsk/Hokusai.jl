@@ -59,9 +59,21 @@ function run(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; kwargs...
     ass = cluster(ts, n, sigma, tau; kwargs...)
     figure()
     plot(ts, ass)
+
 end
 
 run(d::DataFrame, n, sigma, tau; kwargs...) = run(TimeSeries(d), n, sigma, tau; kwargs...)
+
+function runPerSubject(img::String, n, sigma, tau; kwargs...)
+    d = filterdata(DATA, img)
+    ts = TimeSeries(d)
+    for i in 1:length(ts)
+        print(" subject",i)
+        run(ts[i], n, sigma, tau; kwargs...)
+        plotimg(parse(Int, img[1:1]))
+    end
+    nothing
+end
 
 function run(img::Integer, n, sigma, tau; kwargs...)
     run(filterdata(DATA, img), n, sigma, tau; kwargs...)
