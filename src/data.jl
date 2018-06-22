@@ -68,10 +68,11 @@ function run(img::Integer, n, sigma, tau; kwargs...)
     plotimg(img)
 end
 
+
 ## plot functions
 function plot(ts::Union{TimeSeries, Vector{TimeSeries}}, ass)
     ps = points(ts)
-    PyPlot.scatter(ps[:,1], ps[:,2], c=ass)
+    PyPlot.scatter(ps[:,1], ps[:,2], c=ass, cmap="Set3")
     gcf()
 end
 

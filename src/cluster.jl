@@ -32,7 +32,7 @@ function cluster(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; precl
     end
 
     P = transitionmatrix(ts, sigma, tau, grid, symmetrize)
-
+    global lastP = P
     ass = pccap(P, n, method=method).assignments
     if precluster > 0
         ass = ass[kmass]
