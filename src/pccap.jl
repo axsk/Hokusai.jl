@@ -8,11 +8,7 @@ end
 
 function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling, ratematrix=false)
     if pi == nothing
-        which = ratematrix ? :SM : :LM        # eigenvalues of smallest/largest magnitude
-        pi = eigs(P', nev=1, which=which)[2]  # returns ritzvector to first eigenvalue
-        @assert isreal(pi)
-        pi = abs.(pi) |> vec
-        pi = pi / sum(pi)                     # => first col of X is one
+        pi = stationaryDistr(P, ratematrix)
     end
 
     X, λ = schurvectors(P, pi, n, ratematrix)
@@ -38,6 +34,16 @@ function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling, ratematrix=fa
     end
     sum(counts.>0) != n && warn("Not all clusters were assigned")
     return PccapResult(assignments, counts, chi)
+end
+
+# find a stationary distribution, i.e. left normalized eigenvector of P to eigenvalue 1
+function stationaryDistr(P, ratematrix = false)
+    which = ratematrix ? :SM : :LM        # eigenvalues of smallest/largest magnitude
+    pi = eigs(P', nev=1, which=which)[2]  # returns ritzvector to first eigenvalue
+    @assert isreal(pi)
+    pi = abs.(pi) |> vec
+    pi = pi / sum(pi)
+    pi
 end
 
 function schurvectors(P, pi, n, ratematrix)

@@ -1,8 +1,8 @@
-#= 
+#=
 CHOICES:
 - how do we combine multiple timeseries:
   [x] countmatrix |> mean |> rownormalize (weights by size of timeseries)
-  [ ] countmatrix |> rownormalize |> mean (weights every proband the same 
+  [ ] countmatrix |> rownormalize |> mean (weights every proband the same
       - TODO: wouldnt ^^ be better?
         - from a bayesian perspective weighting every proband the same corresponds to a uniform prior on the proband choice
         - question: how will this treat rare events/outliers
@@ -45,10 +45,10 @@ function cluster(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; precl
 end
 
 "given a countmatrix, compute the transitionmatrix"
-transitionmatrix(C::Matrix, symmetrize) = 
+transitionmatrix(C::Matrix, symmetrize) =
     rownormalize(symmetrize ? C + C' : C)
 
-transitionmatrix(ts::Union{TimeSeries, Vector{TimeSeries}}, sigma, tau, grid, symmetrize) = 
+transitionmatrix(ts::Union{TimeSeries, Vector{TimeSeries}}, sigma, tau, grid, symmetrize) =
     transitionmatrix(countmatrix(ts, sigma, tau, grid), symmetrize)
 
 "transition matrix for a single timeseries"
