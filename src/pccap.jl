@@ -52,10 +52,13 @@ end
 # select the schurvectors corresponding to the n abs-largest eigenvalues
 # if reverse==true select highest abs value, otherwise select lowest (for rate matrices)
 function selclusters!(S, n, ratematrix)
-    ind = sortperm(abs.(S[:values]), rev=!ratematrix) # get indices for largest eigenvalues
-    select = zeros(Bool, size(ind))            # create selection vector
+    ind = sortperm(abs.(S[:values]), rev=!ratematrix) # get indices for dominant eigenvalues
+    select = zeros(Bool, size(ind))           # create selection vector
     select[ind[1:n]] = true
     S = ordschur!(S, select)                  # reorder selected vectors to the left
+    if S.T[n+1, n] != 0                       # check if we are cutting along a schur block
+        warn("conjugated eigenvector missing")
+    end
     S[:vectors][:,1:n], S[:values][1:n]       # select first n vectors
 end
 
