@@ -36,12 +36,13 @@ function cluster(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; precl
 
     P = transitionmatrix(ts, sigma, tau, grid, symmetrize)
 
-    ass = pccap(P, n, method=method).assignments
+    pccapResult = pccap(P, n, method=method)
+    ass = pccapResult.assignments
     if precluster > 0
         ass = ass[kmass]
     end
-    ass = sortcluster(ts, ass, sort)
-    return ass
+    #ass = sortcluster(ts, ass, sort)
+    return ass, pccapResult.chi
 end
 
 "given a countmatrix, compute the transitionmatrix"
@@ -54,7 +55,6 @@ transitionmatrix(ts::Union{TimeSeries, Vector{TimeSeries}}, sigma, tau, grid, sy
 "transition matrix for a single timeseries"
 function countmatrix(ts::TimeSeries, sigma, tau, grid::Array)
     n = size(grid, 1) # number of gridpoints
-    C = zeros(n, n)
     m = getGaussMembership(ts.points, grid, sigma) # TODO: dont know anymore why i computed this as batch and not just per fixation in the loop below...
 
     timeframes = div.(ts.times, tau)

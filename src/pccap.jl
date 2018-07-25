@@ -66,7 +66,7 @@ function selclusters!(S, n, ratematrix)
 end
 
 # compute initial guess based on indexmap
-guessinit(X) = feasiblize!(inv(X[indexmap(X), :]), X)
+guessinit(X) = inv(X[indexmap(X), :])
 
 function indexmap(X)
     # get indices of rows of X to span the largest simplex

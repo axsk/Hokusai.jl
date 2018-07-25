@@ -27,12 +27,12 @@ function filterdata(data::DataFrame, image)
     # scale/filter coordinates to 0->width, 0->height
     width, height = data[1,:width], data[1,:height]
     dx, dy = (1280-width)/2, (1024-height)/2
-    
+
     data[:fposx] = data[:fposx] - dx
     data[:fposy] = data[:fposy] - dy
     data = data[((data[:fposx] .> 0) .& (data[:fposy] .> 0) .& (data[:fposx] .< width) .& (data[:fposy] .< height)) , :]
 
-    # TODO: this is not the best way to handle this 
+    # TODO: this is not the best way to handle this
     # - it would be nice to be able to just overlay un- and mirrored data in a comparable way, which this does not do
     # - right now `image` can be either an int or the string from `data[:image]`, returning corresponding mirrored data
     # mirror x coordinates of mirrored version to make it comparable
@@ -56,24 +56,13 @@ end
 
 ## convenience wrapper for plotting
 function run(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; kwargs...)
-    ass = cluster(ts, n, sigma, tau; kwargs...)
+    ass, chi = cluster(ts, n, sigma, tau; kwargs...)
     figure()
     plot(ts, ass)
-
+    ass, chi
 end
 
 run(d::DataFrame, n, sigma, tau; kwargs...) = run(TimeSeries(d), n, sigma, tau; kwargs...)
-
-function runPerSubject(img::String, n, sigma, tau; kwargs...)
-    d = filterdata(DATA, img)
-    ts = TimeSeries(d)
-    for i in 1:length(ts)
-        print(" subject",i)
-        run(ts[i], n, sigma, tau; kwargs...)
-        plotimg(parse(Int, img[1:1]))
-    end
-    nothing
-end
 
 function run(img::Integer, n, sigma, tau; kwargs...)
     run(filterdata(DATA, img), n, sigma, tau; kwargs...)
@@ -83,7 +72,11 @@ end
 ## plot functions
 function plot(ts::Union{TimeSeries, Vector{TimeSeries}}, ass)
     ps = points(ts)
-    PyPlot.scatter(ps[:,1], ps[:,2], c=ass)
+    for i = 1:maximum(ass)
+        j = find(ass .== i)
+        PyPlot.scatter(ps[j,1], ps[j,2], label = i)
+    end
+    PyPlot.legend()
     gcf()
 end
 
