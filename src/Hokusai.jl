@@ -1,5 +1,6 @@
 module Hokusai
 
+using LinearAlgebra
 using Distances
 using Clustering
 using Optim

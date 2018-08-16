@@ -26,8 +26,8 @@ function cluster(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; precl
 
     grid = points(ts)
     if precluster > 0
-        km = Clustering.kmeans(grid', precluster)
-        grid = km.centers'
+        km = Clustering.kmeans(grid'|>copy, precluster)
+        grid = km.centers' |> copy
         kmass = km.assignments
     end
 
@@ -83,7 +83,7 @@ function getGaussMembership(fixations, centers, sigma)
     rownormalize(gausskernels)
 end
 
-rownormalize(M) = M ./ sum(M,2)
+rownormalize(M) = M ./ sum(M, dims=2)
 
 function sortcluster(ts, ass, method)
     if method == :none
