@@ -4,11 +4,15 @@ using DataFrames, CSV, PyPlot
 datapath = joinpath(@__DIR__, "..", "data")
 
 global DATA
-try
-    global DATA = CSV.read(joinpath(datapath, "sallsac_Hokusai.seq"), delim = '\t')
-catch
-    warn("could not load data")
+
+function __init__()
+    try
+        global DATA = CSV.read(joinpath(datapath, "sallsac_Hokusai.seq"), delim = '\t')
+    catch
+        @warn("could not load data")
+    end
 end
+
 
 # TODO: think about a clean filtering interface
 function filterdata(data::DataFrame, image)
