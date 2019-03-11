@@ -46,10 +46,15 @@ function stationaryDistr(P, ratematrix = false)
     pi
 end
 
-function schurvectors(P, pi, n, ratematrix)
+function schurvectors(P, pi, n, ratematrix = false)
     Pw = diagm(sqrt.(pi))*P*diagm(1./sqrt.(pi)) # rescale to keep markov property
     Sw = schurfact!(Pw)                       # returns orthonormal vecs by def
-    Xw, λ = selclusters!(Sw, n, ratematrix)
+    if n == 0
+        Xw = Sw[:vectors]
+        λ = Sw[:Schur]
+    else
+        Xw, λ = selclusters!(Sw, n, ratematrix)
+    end
     X  = diagm(1./sqrt.(pi)) * Xw              # scale back
     X  = X[1,1]>0 ? X : -X
     X, λ

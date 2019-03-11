@@ -2,29 +2,33 @@
 using DataFrames, CSV, PyPlot
 
 datapath = joinpath(@__DIR__, "..", "data")
+#using RData
 
 global DATA
 try
     DATA = CSV.read(joinpath(datapath, "sallsac_Hokusai.seq"), delim = '\t')
+    #hok3 = load(joinpath(datapath,"hok3.rda"))
+    #DATA =  hok3["hok3"]
 catch
     warn("could not load data")
 end
 
+
 # TODO: think about a clean filtering interface
-function filterdata(data::DataFrame, image)
+# mirrored: 0- not mirrored, 1 - mirrored
+# startPos: 0-all, 52-left, 69-right
+function filterdata(data::DataFrame, image, mirrored::Int=0, startPos::Int=0)
     # select the corresponding image
-    data = data[data[:image] .== "$image.jpg", :]
+    if mirrored == 0
+        data = data[data[:image] .== "$image.jpg", :]
+    else
+        data = data[data[:image] .== string(image,"_mirrored.jpg"), :]
+    end
 
-    # TODO: recycle this deprecated stuff?
-    # consider only one starting position
-    # const left = 52
-    # const right = 69
-    # data = data[data[:fixcrosspos] .== left]
+    if startPos != 0
+        data = data[data[:fixcrosspos] .== startPos,:]
+    end
 
-    # experimental: "disable" grouping by subjects (MUTATING!)
-    # data[:subj] = 0
-
-    # scale/filter coordinates to 0->width, 0->height
     width, height = data[1,:width], data[1,:height]
     dx, dy = (1280-width)/2, (1024-height)/2
 
@@ -32,12 +36,16 @@ function filterdata(data::DataFrame, image)
     data[:fposy] = data[:fposy] - dy
     data = data[((data[:fposx] .> 0) .& (data[:fposy] .> 0) .& (data[:fposx] .< width) .& (data[:fposy] .< height)) , :]
 
+
+    # experimental: "disable" grouping by subjects (MUTATING!)
+    # data[:subj] = 0
+
     # TODO: this is not the best way to handle this
     # - it would be nice to be able to just overlay un- and mirrored data in a comparable way, which this does not do
-    # - right now `image` can be either an int or the string from `data[:image]`, returning corresponding mirrored data
+
     # mirror x coordinates of mirrored version to make it comparable
-    if ismatch(r"mirrored", string(image))
-        data[:fposx] = width - data[:fposx]
+    if mirrored == 1
+        data[:fposx] = data[1,:width] - data[:fposx]
     end
 
     return data
@@ -55,17 +63,21 @@ function TimeSeries(data::DataFrame)
 end
 
 ## convenience wrapper for plotting
-function run(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; kwargs...)
-    ass, chi = cluster(ts, n, sigma, tau; kwargs...)
+function run(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau, person; kwargs...)
+    timeseries = person == 0 ? ts : ts[person]
+    ass, chi = cluster(timeseries, n, sigma, tau; kwargs...)
     figure()
-    plot(ts, ass)
+    plot(timeseries, ass)
     ass, chi
 end
 
-run(d::DataFrame, n, sigma, tau; kwargs...) = run(TimeSeries(d), n, sigma, tau; kwargs...)
+run(d::DataFrame, n, sigma, tau, person; kwargs...) = run(TimeSeries(d), n, sigma, tau, person; kwargs...)
 
-function run(img::Integer, n, sigma, tau; kwargs...)
-    run(filterdata(DATA, img), n, sigma, tau; kwargs...)
+# person: 0- all corresponding subjects, else choose a subj from 1:length(corresponding subjects)
+# mirrored: 0- not mirrored, 1 - mirrored
+# startPos: 0-all, 52-left, 69-right
+function run(img::Integer, n, sigma, tau, person::Int = 0, mirrored::Int=0, startPos::Int=0; kwargs...)
+    run(filterdata(DATA, img, mirrored, startPos), n, sigma, tau, person; kwargs...)
     plotimg(img)
 end
 
