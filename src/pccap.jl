@@ -1,4 +1,5 @@
 # TODO: take a look at the whole feasiblization/optimization routine
+import Arpack: eigs
 
 struct PccapResult
     assignments::Vector # discrete cluster assignment
@@ -26,13 +27,13 @@ function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling, ratematrix=fa
 
     chi = X*A
 
-    assignments = mapslices(indmax,chi,2) |> vec
+    assignments = mapslices(argmax, chi, dims=2) |> vec
 
     counts = zeros(Int, n)
     for a in assignments
         counts[a] += 1
     end
-    sum(counts.>0) != n && warn("Not all clusters were assigned")
+    sum(counts.>0) != n && @warn("Not all clusters were assigned")
     return PccapResult(assignments, counts, chi)
 end
 
@@ -47,15 +48,15 @@ function stationaryDistr(P, ratematrix = false)
 end
 
 function schurvectors(P, pi, n, ratematrix = false)
-    Pw = diagm(sqrt.(pi))*P*diagm(1./sqrt.(pi)) # rescale to keep markov property
+    Pw = Diagonal(sqrt.(pi))*P*Diagonal(1 ./ sqrt.(pi)) # rescale to keep markov property
     Sw = schurfact!(Pw)                       # returns orthonormal vecs by def
-    if n == 0
+    if n == 0 # without truncation, needed for the reversibility
         Xw = Sw[:vectors]
         λ = Sw[:Schur]
     else
         Xw, λ = selclusters!(Sw, n, ratematrix)
     end
-    X  = diagm(1./sqrt.(pi)) * Xw              # scale back
+    X  = Diagonal(1 ./sqrt.(pi)) * Xw              # scale back
     X  = X[1,1]>0 ? X : -X
     X, λ
 end
@@ -63,11 +64,14 @@ end
 # select the schurvectors corresponding to the n abs-largest eigenvalues
 # if reverse==true select highest abs value, otherwise select lowest (for rate matrices)
 function selclusters!(S, n, ratematrix)
-    ind = sortperm(abs.(S[:values]), rev=!ratematrix) # get indices for largest eigenvalues
-    select = zeros(Bool, size(ind))            # create selection vector
-    select[ind[1:n]] = true
+    ind = sortperm(abs.(S.values), rev=!ratematrix) # get indices for dominant eigenvalues
+    select = zeros(Bool, size(ind))           # create selection vector
+    select[ind[1:n]] .= true
     S = ordschur!(S, select)                  # reorder selected vectors to the left
-    S[:vectors][:,1:n], S[:values][1:n]       # select first n vectors
+    if S.T[n+1, n] != 0                       # check if we are cutting along a schur block
+        @warn("conjugated eigenvector missing")
+    end
+    S.vectors[:,1:n], S.values[1:n]       # select first n vectors
 end
 
 # compute initial guess based on indexmap
@@ -75,12 +79,12 @@ guessinit(X) = inv(X[indexmap(X), :])
 
 function indexmap(X)
     # get indices of rows of X to span the largest simplex
-    rnorm(x) = sqrt.(sum(abs2.(x),2)) |> vec
+    rnorm(x) = sqrt.(sum(abs2.(x), dims=2)) |> vec
     ind=zeros(Int, size(X,2))
     for j in 1:length(ind)
         rownorm=rnorm(X)
         # store largest row index
-        ind[j]=indmax(rownorm)
+        ind[j]=argmax(rownorm)
         if j == 1
             # translate to origin
             X = X .- X[ind[1],:]'
@@ -95,14 +99,14 @@ function indexmap(X)
 end
 
 function feasiblize!(A,X)
-    A[:,1] = -sum(A[:,2:end], 2)
-    A[1,:] = -minimum(X[:,2:end] * A[2:end,:], 1)
+    A[:,1] = -sum(A[:,2:end], dims=2)
+    A[1,:] = -minimum(X[:,2:end] * A[2:end,:], dims=1)
     A / sum(A[1,:])
 end
 
 # maximal scaling condition (source?)
 function I1(A,X)
-    sum(maximum(X*A,1))
+    sum(maximum(X*A, dims = 1))
 end
 
 # metastability criterion, cf. Deuflhard (2000)
