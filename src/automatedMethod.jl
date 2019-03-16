@@ -12,7 +12,8 @@ function automatedNumber(image, person, sigma, tau, mirrored, startPos, plot::In
     maxgaps, distances, d = getEvGaps(P)
     if plot == 1  println(string("maximal gaps: ",maxgaps)) end
     # algorithm is not working for number of clusters <= 2
-    deleteat!(maxgaps,findin(maxgaps,[1,2]))
+    deleteat!(maxgaps, findall(maxgaps .==1))
+    deleteat!(maxgaps, findall(maxgaps .==2))
     kmin = minimum(maxgaps[1:3]) # lower bound for n
     kmax = maximum(maxgaps[1:3]) # upper bound for n
     # calculate minchi values
@@ -67,9 +68,21 @@ end
 # get sorted schur values of transition matrix P
 function getEvGaps(P)
     # get schur decomposition and calculate absolute values of schur values
-    S = schurfact(P)
-    real = try [x.re for x in S[:values]] catch S[:values] end
-    imaginary = try [x.im for x in S[:values]] catch 0 end
+    S = schur(P)
+    real = []
+    imaginary = []
+    for x in S.values
+        try
+            append!(real, x.re)
+        catch
+            append!(real, x)
+        end
+        try
+            append!(imaginary, x.im)
+        catch
+            append!(imaginary, 0)
+        end
+    end
     distances = sqrt.(real.^2 .+ imaginary.^2)
     # calculate maximal gaps of schur values
     d = [distances[i-1] - distances[i] for i = 2:length(distances)]
@@ -124,7 +137,7 @@ end
 
 # calculate projected transition matrix
 function calculatePc(chi, pi, P)
-    return(inv(chi'*diagm(pi)*chi)*(chi'*diagm(pi)*P*chi))
+    return(inv(chi'*diagm(0 => pi)*chi)*(chi'*diagm(0 => pi)*P*chi))
 end
 
 # compare the different criteria for determining n
@@ -152,7 +165,7 @@ function compareCriteria(image, person, sigma, tau, mirrored, startPos, kmin, km
         crisp[k - kmin + 1, 2] = I3(A)/k
         crisp[k - kmin + 1, 1] = k
 
-        Pc = inv(chi'*diagm(pi)*chi)*(chi'*diagm(pi)*P*chi)
+        Pc = inv(chi'*diagm(0=>pi)*chi)*(chi'*diagm(0=>pi)*P*chi)
         minPc[k - kmin + 1, 2] = findmin(Pc)[1]
         minPc[k - kmin + 1, 1] = k
     end
@@ -174,7 +187,7 @@ function meanNoCluster(image, mirrored, startPos, sigma, tau)
     for person = 1:nbSubjects
         push!(nbC,[unique(data[:subj])[person], automatedNumber(image, person, sigma, tau, mirrored, startPos, 0)])
     end
-    return(round(mean(nbC[:noCluster]),2))
+    return(round(mean(nbC[:noCluster]),digits = 2))
 end
 
 # compute number of clusters per sigma between sigmin*10 and sigmax*10 and plot in addition the corresponding crispness

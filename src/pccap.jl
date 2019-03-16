@@ -49,10 +49,10 @@ end
 
 function schurvectors(P, pi, n, ratematrix = false)
     Pw = Diagonal(sqrt.(pi))*P*Diagonal(1 ./ sqrt.(pi)) # rescale to keep markov property
-    Sw = schurfact!(Pw)                       # returns orthonormal vecs by def
+    Sw = schur!(Pw)                       # returns orthonormal vecs by def
     if n == 0 # without truncation, needed for the reversibility
-        Xw = Sw[:vectors]
-        λ = Sw[:Schur]
+        Xw = Sw.vectors
+        λ = Sw.Schur
     else
         Xw, λ = selclusters!(Sw, n, ratematrix)
     end

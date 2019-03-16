@@ -86,7 +86,7 @@ end
 function plot(ts::Union{TimeSeries, Vector{TimeSeries}}, ass)
     ps = points(ts)
     for i = 1:maximum(ass)
-        j = find(ass .== i)
+        j = findall(ass .== i)
         PyPlot.scatter(ps[j,1], ps[j,2], label = i)
     end
     PyPlot.legend()
