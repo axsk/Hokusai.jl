@@ -1,7 +1,7 @@
 # returns the transition matrix P and its "non-reversible part" distm, i.e. P - distm is reversible
 function reversibilitydist(image, person, sigma, tau, mirrored, startPos)
     # prepare and filter data
-    timeseries, ts, P, pi = prepare(image, mirrored, startPos, person, sigma, tau)
+    timeseries, ts, P, pi = prepare(image, mirrored, startPos, person, sigma, tau, 0)
     # get weighted schur decomposition
     X, L = schurvectors(P, pi, 0)
     # calculate the non-reversible part via the non-diagonal entries of the schur value matrix L

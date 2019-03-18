@@ -7,7 +7,7 @@
 # cr: 1- output includes nc and the corresponding crispness; take care that id does not hold pc=1=cr
 function automatedNumber(image, person, sigma, tau, mirrored, startPos, plot::Int=1, pc::Int=0, cr::Int=0)
     # get time series, transition matrix and stationary distribution of filtered data
-    timeseries, ts, P, pi = prepare(image, mirrored, startPos, person, sigma, tau)
+    timeseries, ts, P, pi = prepare(image, mirrored, startPos, person, sigma, tau, plot)
     # get sorted ev gaps
     maxgaps, distances, d = getEvGaps(P)
     if plot == 1  println(string("maximal gaps: ",maxgaps)) end
@@ -48,10 +48,14 @@ function automatedNumber(image, person, sigma, tau, mirrored, startPos, plot::In
 end
 
 # get time series, transition matrix and stationary distribution of filtered data
-function prepare(image, mirrored, startPos, person, sigma, tau, symmetrize = false)
+function prepare(image, mirrored, startPos, person, sigma, tau, plot = 1, symmetrize = false)
     data = filterdata(DATA, image, mirrored, startPos)
-    if person != 0
-        println(string("subject: ",unique(data[:subj])[person]))
+    if plot == 1
+        if person != 0
+            println(string("subject: ",unique(data[:subj])[person]))
+        else
+            println("all")
+        end
     end
     # transform filtered data into a TimeSeries to corresponding person
     ts = TimeSeries(data)
@@ -187,7 +191,7 @@ function meanNoCluster(image, mirrored, startPos, sigma, tau)
     for person = 1:nbSubjects
         push!(nbC,[unique(data[:subj])[person], automatedNumber(image, person, sigma, tau, mirrored, startPos, 0)])
     end
-    return(round(mean(nbC[:noCluster]),digits = 2))
+    return(round(Statistics.mean(nbC[:noCluster]),digits = 2))
 end
 
 # compute number of clusters per sigma between sigmin*10 and sigmax*10 and plot in addition the corresponding crispness
