@@ -9,11 +9,7 @@ end
 
 function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling, ratematrix=false)
     if pi == nothing
-        which = ratematrix ? :SM : :LM
-        pi = eigs(P', nev=1, which=which)[2]
-        @assert isreal(pi)
-        pi = abs.(pi) |> vec
-        pi = pi / sum(pi)                     # => first col of X is one
+        pi = stationaryDistr(P, ratematrix)
     end
 
     X, λ = schurvectors(P, pi, n, ratematrix)
@@ -41,10 +37,25 @@ function pccap(P::Matrix, n::Integer; pi=nothing, method=:scaling, ratematrix=fa
     return PccapResult(assignments, counts, chi)
 end
 
-function schurvectors(P, pi, n, ratematrix)
+# find a stationary distribution, i.e. left normalized eigenvector of P to eigenvalue 1
+function stationaryDistr(P, ratematrix = false)
+    which = ratematrix ? :SM : :LM        # eigenvalues of smallest/largest magnitude
+    pi = eigs(P', nev=1, which=which)[2]  # returns ritzvector to first eigenvalue
+    @assert isreal(pi)
+    pi = abs.(pi) |> vec
+    pi = pi / sum(pi)
+    pi
+end
+
+function schurvectors(P, pi, n, ratematrix = false)
     Pw = Diagonal(sqrt.(pi))*P*Diagonal(1 ./ sqrt.(pi)) # rescale to keep markov property
     Sw = schur!(Pw)                       # returns orthonormal vecs by def
-    Xw, λ = selclusters!(Sw, n, ratematrix)
+    if n == 0 # without truncation, needed for the reversibility
+        Xw = Sw.vectors
+        λ = Sw.Schur
+    else
+        Xw, λ = selclusters!(Sw, n, ratematrix)
+    end
     X  = Diagonal(1 ./sqrt.(pi)) * Xw              # scale back
     X  = X[1,1]>0 ? X : -X
     X, λ
@@ -64,7 +75,7 @@ function selclusters!(S, n, ratematrix)
 end
 
 # compute initial guess based on indexmap
-guessinit(X) = feasiblize!(inv(X[indexmap(X), :]), X)
+guessinit(X) = inv(X[indexmap(X), :])
 
 function indexmap(X)
     # get indices of rows of X to span the largest simplex

@@ -1,8 +1,8 @@
-#= 
+#=
 CHOICES:
 - how do we combine multiple timeseries:
   [x] countmatrix |> mean |> rownormalize (weights by size of timeseries)
-  [ ] countmatrix |> rownormalize |> mean (weights every proband the same 
+  [ ] countmatrix |> rownormalize |> mean (weights every proband the same
       - TODO: wouldnt ^^ be better?
         - from a bayesian perspective weighting every proband the same corresponds to a uniform prior on the proband choice
         - question: how will this treat rare events/outliers
@@ -19,6 +19,9 @@ end
 points(ts::TimeSeries) = ts.points
 points(tss::Vector{TimeSeries}) = vcat((points(ts) for ts in tss)...)
 
+times(ts::TimeSeries) = ts.times
+times(tss::Vector{TimeSeries}) = vcat((times(ts) for ts in tss)...)
+
 "high level api interface
 supports multiple timeseries, preclustering, sorting, symmetrization"
 function cluster(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; precluster=0, sort=:size, method=:scaling, symmetrize=false)
@@ -33,27 +36,29 @@ function cluster(ts::Union{TimeSeries, Vector{TimeSeries}}, n, sigma, tau; precl
 
     P = transitionmatrix(ts, sigma, tau, grid, symmetrize)
 
-    ass = pccap(P, n, method=method).assignments
+    pccapResult = pccap(P, n, method=method)
+    ass = pccapResult.assignments
     if precluster > 0
         ass = ass[kmass]
     end
-    ass = sortcluster(ts, ass, sort)
-    return ass
+    #ass = sortcluster(ts, ass, sort)
+    return ass, pccapResult.chi
 end
 
 "given a countmatrix, compute the transitionmatrix"
-transitionmatrix(C::Matrix, symmetrize) = 
+transitionmatrix(C::Matrix, symmetrize) =
     rownormalize(symmetrize ? C + C' : C)
 
-transitionmatrix(ts::Union{TimeSeries, Vector{TimeSeries}}, sigma, tau, grid, symmetrize) = 
+transitionmatrix(ts::Union{TimeSeries, Vector{TimeSeries}}, sigma, tau, grid, symmetrize) =
     transitionmatrix(countmatrix(ts, sigma, tau, grid), symmetrize)
 
 "transition matrix for a single timeseries"
 function countmatrix(ts::TimeSeries, sigma, tau, grid::Array)
-    n = size(grid, 1)
+    n = size(grid, 1) # number of gridpoints
     m = getGaussMembership(ts.points, grid, sigma) # TODO: dont know anymore why i computed this as batch and not just per fixation in the loop below...
 
     timeframes = div.(ts.times, tau)
+
     last = 1
     inds = [1]
     repeats = [1]
