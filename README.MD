@@ -2,6 +2,10 @@
 
 A julia package for clustering spatial timeseries, like for example eye-tracking data, based on PCCA+.
 
+## References
+- Bachelor thesis (https://github.com/axsk/bachelor/blob/master/ba.pdf)
+- Spectral Clustering for Non-Reversible Markov Chains (https://doi.org/https://doi.org/10.1007/s40314-018-0697-0)
+
 ## Installation
 Requires Julia 0.6. 
 - Install the package:
